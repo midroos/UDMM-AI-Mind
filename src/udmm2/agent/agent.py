@@ -11,6 +11,7 @@ from ..body.body_model import BodyModel
 from ..envs.natural_env import NaturalEnv
 from ..affect.emotion import EmotionModel
 from ..goals.attractor import AttractorModel
+from ..goals.hierarchical_intent import HierarchicalIntent, Subgoal
 
 def utcnow_iso():
     return datetime.now(timezone.utc).isoformat()
@@ -23,7 +24,7 @@ class UDMMAgent:
         self.body = BodyModel()
         self.env = env or NaturalEnv()
         self.emotion_model = EmotionModel(alpha=0.9, max_gain=3.0)
-        self.attractor: Optional[AttractorModel] = None
+        self.hierarchical_intent: Optional[HierarchicalIntent] = None
         self._precision_gain = 1.0
         self.cycle = 0
         self._last_expectation = {}
@@ -64,36 +65,44 @@ class UDMMAgent:
         self._last_expectation = exp  # Store for use in update_model
         return exp
 
-    def set_attractor(self, x: float, y: float, weight: float = 1.0):
-        self.attractor = AttractorModel(target_x=x, target_y=y, weight=weight)
+    def set_hierarchical_attractor(self, ultimate_attractor: AttractorModel, n_steps: int = 3):
+        self.hierarchical_intent = HierarchicalIntent(ultimate_attractor=ultimate_attractor)
+        self.hierarchical_intent.generate_subgoals(self.body.get_state(), self.semantic_memory, n_steps=n_steps)
 
     def select_action(self, intentions: Optional[List[Any]] = None) -> Dict[str, Any]:
         gain = getattr(self, "_precision_gain", 1.0)
         if self.body.energy < 0.15:
             return {"type": "idle"}
 
-        if self.attractor:
-            current_pos = self.body.get_state()
-            dx = self.attractor.target_x - current_pos["x"]
-            dy = self.attractor.target_y - current_pos["y"]
+        if self.hierarchical_intent:
+            subgoal = self.hierarchical_intent.current_subgoal()
+            if subgoal:
+                current_pos = self.body.get_state()
+                dx = subgoal.target_x - current_pos["x"]
+                dy = subgoal.target_y - current_pos["y"]
+                dist_to_subgoal = math.hypot(dx, dy)
 
-            target_angle_rad = math.atan2(dy, dx)
-            target_angle_deg = math.degrees(target_angle_rad)
+                if dist_to_subgoal < 0.1: # Reached subgoal
+                    self.hierarchical_intent.advance_subgoal()
+                    # After advancing, get the next subgoal for this same step
+                    subgoal = self.hierarchical_intent.current_subgoal()
+                    if not subgoal: return {"type": "idle"} # Reached final goal
+                    # Recalculate dx, dy for the new subgoal
+                    dx = subgoal.target_x - current_pos["x"]
+                    dy = subgoal.target_y - current_pos["y"]
 
-            current_angle_deg = self.body.orientation_deg
-            angle_diff = (target_angle_deg - current_angle_deg + 180) % 360 - 180
+                target_angle_rad = math.atan2(dy, dx)
+                target_angle_deg = math.degrees(target_angle_rad)
+                current_angle_deg = self.body.orientation_deg
+                angle_diff = (target_angle_deg - current_angle_deg + 180) % 360 - 180
 
-            if abs(angle_diff) > 5.0: # Turn if not facing the target
-                return {"type": "turn", "angle": angle_diff * 0.5} # Turn halfway
-            else: # Move if facing the target
-                dist = self.attractor.distance(current_pos)
-                pull = self.attractor.pull_strength(current_pos)
-                # Step size is proportional to pull strength, but capped by max_step
-                effective_step = self.body.max_step * min(1.0, pull)
-                step = min(dist, effective_step * gain)
-                return {"type": "move_forward", "step": step}
+                if abs(angle_diff) > 5.0:
+                    return {"type": "turn", "angle": angle_diff * 0.5}
+                else:
+                    step = min(dist_to_subgoal, self.body.max_step * gain)
+                    return {"type": "move_forward", "step": step}
 
-        # Default exploratory action if no attractor
+        # Default exploratory action if no hierarchical intent
         step = 0.5 * gain
         return {"type": "move_forward", "step": step}
 
@@ -117,10 +126,11 @@ class UDMMAgent:
         }
 
     def set_precision(self, gain: float):
+        # Precision can be boosted by overall goal proximity
         attractor_boost = 1.0
-        if self.attractor:
-            pull = self.attractor.pull_strength(self.body.get_state())
-            attractor_boost = 1.0 + 0.5 * min(1.0, pull) # Boost up to 50%
+        if self.hierarchical_intent:
+            pull = self.hierarchical_intent.ultimate_attractor.pull_strength(self.body.get_state())
+            attractor_boost = 1.0 + 0.5 * min(1.0, pull)
 
         self._precision_gain = float(gain) * attractor_boost
 

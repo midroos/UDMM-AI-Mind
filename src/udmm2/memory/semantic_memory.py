@@ -1,6 +1,7 @@
 from __future__ import annotations
 import networkx as nx
 import re
+import math
 from typing import List, Optional, Tuple, Dict, Any
 from uuid import UUID
 
@@ -146,3 +147,21 @@ class SemanticMemory:
             self.graph.nodes[rule_id]["data"].confidence = new_conf
             return True
         return False
+
+    def closest_concept(self, x: float, y: float) -> Optional[str]:
+        """Finds the label of the concept closest to the given (x, y) coordinates."""
+        min_dist = float('inf')
+        closest_label = None
+
+        for node_id, data in self.graph.nodes(data=True):
+            node_data = data.get("data")
+            if isinstance(node_data, Concept):
+                attrs = node_data.attributes
+                if isinstance(attrs, dict) and "x" in attrs and "y" in attrs:
+                    cx, cy = float(attrs["x"]), float(attrs["y"])
+                    dist = math.hypot(cx - x, cy - y)
+                    if dist < min_dist:
+                        min_dist = dist
+                        closest_label = node_data.label
+
+        return closest_label
