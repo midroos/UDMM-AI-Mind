@@ -111,3 +111,10 @@ def create_episode(payload: Episode):
 @app.get("/memory/episodes", response_model=List[Episode], tags=["Episodes"])
 def list_episodes(limit: int = Query(50, ge=1, le=500)):
     return episodic_memory.list_episodes(limit)
+
+# --- Include Intentionality and Streaming Routers ---
+from .intent_app import router as intent_router
+from .stream import router as stream_router
+
+app.include_router(intent_router)
+app.include_router(stream_router)

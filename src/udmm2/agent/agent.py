@@ -8,111 +8,74 @@ from .working_memory import WorkingMemory, WMItem
 from ..memory.episodic_memory import EpisodicMemory
 from ..memory.semantic_memory import SemanticMemory
 from ..memory.models import Episode
-from .goal_manager import GoalManager, Intention
-
+# The agent itself no longer directly manages goals or intentions
+from ..intent.api_models import Intention
 
 class UDMMAgent:
-    def __init__(self, name: str, reference_state: Dict):
+    def __init__(self, name: str = "UDMMAgent"):
         self.name = name
         self.body = BodyModel()
         self.working_memory = WorkingMemory()
         self.episodic_memory = EpisodicMemory()
-        self.goal_manager = GoalManager(reference_state)
         self.semantic_memory = SemanticMemory()
-        self.current_state = {}  # Simplified representation of agent state
+        self.current_state = {}
+        self._precision_gain = 1.0
 
     def perceive(self, inputs: Dict):
-        # Update current state with external inputs and internal body state
         self.current_state.update(inputs)
         self.current_state.update({"body": self.body.get_state()})
-
-        perception_content = {**inputs, "body": self.body.get_state()}
-        perception_item = WMItem(type="perception", content=str(perception_content))
+        perception_item = WMItem(type="perception", content=str(self.current_state))
         self.working_memory.add_item(perception_item)
 
-    def generate_expectation(self) -> Dict[str, List[str]]:
-        """
-        Generate expectations based on semantic relationships.
-        If the agent perceives a concept, predict related concepts.
-        """
+    def generate_expectation(self, perception: Dict) -> Dict[str, List[str]]:
         expectations = {}
-        # Assuming current_state values are concept labels
-        for key, value in self.current_state.items():
+        for key, value in perception.items():
             if isinstance(value, str):
                 related = self.semantic_memory.get_related(value)
                 if related:
                     expectations[key + "_related"] = related
         return expectations
 
-    def select_action(self, intentions: List[Intention]) -> str:
-        # Select highest priority intention and convert to action
-        if intentions:
-            return intentions[0].description
-        return "Idle"
+    def select_action(self, intentions: List[Intention]) -> Dict:
+        # Simple selection: pick highest strength intention, or default explore
+        if not intentions:
+            return {"type": "explore", "step": 0.5 * self._precision_gain}
 
-    def observe(self, action_result: Dict):
-        # Update current state with result of action
+        # For now, just use the description as a cue
+        best_intention = max(intentions, key=lambda i: i.strength)
+        action_desc = best_intention.description.lower()
+
+        if "refine" in action_desc:
+            return {"type": "cognitive_focus", "target": "model"}
+        else:
+            # Scale movement by precision gain
+            step_size = 1.0 * self._precision_gain
+            return {"type": "move_forward", "step": step_size}
+
+    def apply_action(self, action: dict) -> dict:
+        """Applies a structured action to the body model."""
+        kind = action.get("type", "noop")
+        if kind == "move_forward":
+            step = action.get("step", 1.0)
+            self.body.move(step)
+            return {"status": "ok", "info": f"moved forward by {step}"}
+        elif kind == "rotate":
+            angle = action.get("angle", 0.1)
+            self.body.rotate(angle)
+            return {"status": "ok", "info": f"rotated by {angle}"}
+        return {"status": "noop", "info": "no physical action taken"}
+
+    def observe(self, action_result: Dict) -> Dict:
         self.current_state.update(action_result)
         observation_item = WMItem(type="observation", content=str(action_result))
         self.working_memory.add_item(observation_item)
+        return self.current_state
 
-    def update_model(self, discrepancy: float):
-        # If discrepancy high, adjust internal reference (simulate learning)
-        if discrepancy > 0.7:
-            for key, value in self.current_state.items():
-                self.goal_manager.reference_state[key] = value
+    def set_precision(self, gain: float):
+        """Emotion-as-precision: modulates internal weighting."""
+        self._precision_gain = float(gain)
 
-    def _execute_action(self, action: str) -> Dict[str, Any]:
-        """Translates a string action into a physical body action."""
-        dx, dy, d_energy = 0.0, 0.0, 0.0
-
-        if "Explore" in action:
-            dx, dy = self.body.move(distance=0.5)
-            self.body.rotate(dtheta=0.1)
-            d_energy = -0.5  # Assumed energy cost
-
-        # Simple emotion signal calculation
-        arousal = math.sqrt(dx**2 + dy**2) + abs(d_energy)
-
-        return {"dx": dx, "dy": dy, "d_energy": d_energy, "emotion_signal": arousal}
-
-    def step(self, inputs: Dict, action_result: Dict) -> Dict[str, Any]:
-        # 1. Perceive world and own body state
-        self.perceive(inputs)
-        body_before = self.body.get_state()
-
-        # 2. Reason about state and generate intentions
-        discrepancy = self.goal_manager.evaluate_discrepancy(self.current_state)
-        intentions = self.goal_manager.generate_intentions(discrepancy)
-        expectations = self.generate_expectation()
-
-        # 3. Select and execute a bodily action
-        action_str = self.select_action(intentions)
-        action_effects = self._execute_action(action_str)
-        body_after = self.body.get_state()
-
-        # 4. Observe external results of action
-        self.observe(action_result)
-
-        # 5. Update internal models based on discrepancy
-        self.update_model(discrepancy)
-
-        # 6. Save a rich, embodied episode
-        episode = Episode(
-            context="agent_cycle",
-            perception=inputs,
-            action=action_str,
-            result=action_result,
-            body_before=body_before,
-            body_after=body_after,
-            emotion_signal=action_effects["emotion_signal"]
-        )
-        self.episodic_memory.add_episode(episode)
-
-        return {
-            "discrepancy": discrepancy,
-            "selected_action": action_str,
-            "intentions": [i.model_dump() for i in intentions],
-            "expectations": expectations,
-            "emotion_signal": action_effects["emotion_signal"]
-        }
+    def update_model(self, observation: dict, precision_gain: float, emotion_signal: float):
+        """The bridge calls this, but the agent itself doesn't do learning yet."""
+        # This is where future learning logic would go, weighted by precision_gain.
+        pass
