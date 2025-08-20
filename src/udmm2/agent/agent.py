@@ -27,6 +27,7 @@ class UDMMAgent:
         self._last_expectation = {}
         self._last_observation = {}
         self._last_prediction_error = 0.0
+        self._metrics = {"prediction_error": [], "precision_gain": [], "rule_confidence": []}
 
         try:
             self.semantic_memory.add_concept(
@@ -141,8 +142,15 @@ class UDMMAgent:
             body_after=observed_body,
             emotion_signal=em.arousal
         )
+        # Log metrics for this cycle
+        self._metrics["prediction_error"].append(pred_err)
+        self._metrics["precision_gain"].append(em.precision_gain)
+
         self._last_observation = observation
         self._last_prediction_error = pred_err
+
+    def get_metrics(self) -> dict:
+        return dict(self._metrics)
 
     def step(self, perception: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         self.cycle += 1

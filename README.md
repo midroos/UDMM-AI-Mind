@@ -20,3 +20,19 @@ python -m udmm2.run_v2
 ## الحالة
 
 نسخة أولية (scaffold). سيتم توسيع الوظائف تباعًا.
+
+---
+
+## Experiments & Visualization
+
+To run an experiment and visualize the agent's learning dynamics (prediction error, precision gain, rule confidence):
+
+```bash
+# Ensure you have installed the visualization dependencies
+pip install -e .[viz]
+
+# Run the visualization script
+python -m scripts.visualize_learning
+```
+
+This will run a 60-step simulation and generate plots showing how the agent's internal metrics change over time.
