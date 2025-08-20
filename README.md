@@ -36,3 +36,13 @@ python -m scripts.visualize_learning
 ```
 
 This will run a 60-step simulation and generate plots showing how the agent's internal metrics change over time.
+
+### Virtual Attractor
+
+The agent can be given a goal state in its 2D environment by setting a "Virtual Attractor". This creates a "pull" that influences the agent's action selection, causing it to move towards the target.
+
+To visualize this behavior:
+
+```bash
+python -m scripts.visualize_attractor
+```

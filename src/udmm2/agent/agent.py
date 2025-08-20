@@ -10,6 +10,7 @@ from ..memory.semantic_memory import SemanticMemory
 from ..body.body_model import BodyModel
 from ..envs.natural_env import NaturalEnv
 from ..affect.emotion import EmotionModel
+from ..goals.attractor import AttractorModel
 
 def utcnow_iso():
     return datetime.now(timezone.utc).isoformat()
@@ -22,6 +23,7 @@ class UDMMAgent:
         self.body = BodyModel()
         self.env = env or NaturalEnv()
         self.emotion_model = EmotionModel(alpha=0.9, max_gain=3.0)
+        self.attractor: Optional[AttractorModel] = None
         self._precision_gain = 1.0
         self.cycle = 0
         self._last_expectation = {}
@@ -62,10 +64,36 @@ class UDMMAgent:
         self._last_expectation = exp  # Store for use in update_model
         return exp
 
+    def set_attractor(self, x: float, y: float, weight: float = 1.0):
+        self.attractor = AttractorModel(target_x=x, target_y=y, weight=weight)
+
     def select_action(self, intentions: Optional[List[Any]] = None) -> Dict[str, Any]:
-        gain = max(0.5, min(2.0, getattr(self, "_precision_gain", 1.0)))
+        gain = getattr(self, "_precision_gain", 1.0)
         if self.body.energy < 0.15:
             return {"type": "idle"}
+
+        if self.attractor:
+            current_pos = self.body.get_state()
+            dx = self.attractor.target_x - current_pos["x"]
+            dy = self.attractor.target_y - current_pos["y"]
+
+            target_angle_rad = math.atan2(dy, dx)
+            target_angle_deg = math.degrees(target_angle_rad)
+
+            current_angle_deg = self.body.orientation_deg
+            angle_diff = (target_angle_deg - current_angle_deg + 180) % 360 - 180
+
+            if abs(angle_diff) > 5.0: # Turn if not facing the target
+                return {"type": "turn", "angle": angle_diff * 0.5} # Turn halfway
+            else: # Move if facing the target
+                dist = self.attractor.distance(current_pos)
+                pull = self.attractor.pull_strength(current_pos)
+                # Step size is proportional to pull strength, but capped by max_step
+                effective_step = self.body.max_step * min(1.0, pull)
+                step = min(dist, effective_step * gain)
+                return {"type": "move_forward", "step": step}
+
+        # Default exploratory action if no attractor
         step = 0.5 * gain
         return {"type": "move_forward", "step": step}
 
@@ -89,7 +117,12 @@ class UDMMAgent:
         }
 
     def set_precision(self, gain: float):
-        self._precision_gain = float(gain)
+        attractor_boost = 1.0
+        if self.attractor:
+            pull = self.attractor.pull_strength(self.body.get_state())
+            attractor_boost = 1.0 + 0.5 * min(1.0, pull) # Boost up to 50%
+
+        self._precision_gain = float(gain) * attractor_boost
 
     def observe(self, observation: Dict[str, Any]) -> Dict[str, Any]:
         item = WMItem(id=uuid4(), type="observation", content=str(observation), activation=1.0)
