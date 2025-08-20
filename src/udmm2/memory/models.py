@@ -48,4 +48,6 @@ class Episode(BaseModel):
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     description: str
     context: str
+    action: Optional[str] = None
+    result: Optional[str] = None
     linked_concepts: List[UUID] = Field(default_factory=list)

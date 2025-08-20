@@ -13,28 +13,19 @@ class EpisodicMemory:
         """Initializes the episodic memory store."""
         self.episodes: Dict[UUID, Episode] = {}
 
-    def add_episode(
-        self,
-        description: str,
-        context: str,
-        linked_concepts: Optional[List[UUID]] = None,
-    ) -> UUID:
+    def add_episode(self, episode: Episode) -> UUID:
         """
-        Creates and stores a new episode.
+        Adds a new episode to the memory store.
 
         Args:
-            description: A textual description of the event.
-            context: The environment or situation context.
-            linked_concepts: A list of concept UUIDs related to this episode.
+            episode: The Episode object to add.
 
         Returns:
-            The unique ID of the newly created episode.
+            The unique ID of the episode.
         """
-        episode = Episode(
-            description=description,
-            context=context,
-            linked_concepts=linked_concepts or [],
-        )
+        if episode.id in self.episodes:
+            # Handle potential ID collision if necessary, for now just overwrite
+            pass
         self.episodes[episode.id] = episode
         return episode.id
 
