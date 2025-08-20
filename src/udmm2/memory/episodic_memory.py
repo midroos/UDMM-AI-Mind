@@ -85,3 +85,9 @@ class EpisodicMemory:
             for ep in self.episodes.values()
             if concept_id in ep.linked_concepts
         ]
+
+    def list_episodes(self, limit: int = 50) -> List[Episode]:
+        """Returns a list of the most recent episodes."""
+        # Sorting by timestamp to get the most recent ones
+        sorted_episodes = sorted(self.episodes.values(), key=lambda ep: ep.timestamp, reverse=True)
+        return sorted_episodes[:limit]

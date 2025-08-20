@@ -4,7 +4,14 @@ from udmm2.agent.agent import UDMMAgent
 def test_agent_semantic_and_embodied_cycle():
     # Setup: Create a low-discrepancy state to prioritize exploration
     agent = UDMMAgent(name="EmbodiedSemanticAgent", reference_state={"object": "tree"})
-    agent.semantic_memory.add_concept_simple("tree", {"type": "plant"}, ["leaf", "branch"])
+    # Add concepts and link them for the test
+    leaf_id = agent.semantic_memory.add_concept(label="leaf", description="", attributes={}, relations=[])
+    branch_id = agent.semantic_memory.add_concept(label="branch", description="", attributes={}, relations=[])
+    relations = [
+        {"target_id": str(leaf_id), "relation": "has_part"},
+        {"target_id": str(branch_id), "relation": "has_part"},
+    ]
+    agent.semantic_memory.add_concept(label="tree", description="A woody plant", attributes={"type": "plant"}, relations=relations)
 
     initial_body_state = agent.body.get_state()
 
