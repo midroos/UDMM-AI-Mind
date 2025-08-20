@@ -10,31 +10,39 @@ def em():
     return EpisodicMemory()
 
 def test_add_and_get_episode(em: EpisodicMemory):
-    episode = Episode(description="Agent explored forest", context="NaturalEnv")
+    """Test that an episode can be added and retrieved."""
+    episode = Episode(
+        context="test_env",
+        perception={"state": "initial"},
+        action="do_something",
+        result={"state": "final"}
+    )
     eid = em.add_episode(episode)
     fetched = em.get_episode(eid)
     assert fetched is not None
-    assert fetched.description == "Agent explored forest"
+    assert fetched.action == "do_something"
     assert fetched.id == eid
 
 def test_query_by_context(em: EpisodicMemory):
-    ep1 = Episode(description="Event 1", context="NaturalEnv")
-    ep2 = Episode(description="Event 2", context="TrapEnv")
+    """Test querying episodes by their context."""
+    ep1 = Episode(context="NaturalEnv", perception={}, action="a1", result={})
+    ep2 = Episode(context="TrapEnv", perception={}, action="a2", result={})
     em.add_episode(ep1)
     em.add_episode(ep2)
 
     result = em.query_by_context("NaturalEnv")
     assert len(result) == 1
-    assert result[0].description == "Event 1"
+    assert result[0].action == "a1"
 
 def test_query_by_time_range(em: EpisodicMemory):
+    """Test querying episodes by a time range."""
     now = datetime.now(timezone.utc)
 
-    past_episode = Episode(description="Past Event", context="NaturalEnv")
+    past_episode = Episode(context="time_test", perception={}, action="past_action", result={})
     past_episode.timestamp = now - timedelta(days=2)
     em.add_episode(past_episode)
 
-    recent_episode = Episode(description="Recent Event", context="NaturalEnv")
+    recent_episode = Episode(context="time_test", perception={}, action="recent_action", result={})
     em.add_episode(recent_episode)
 
     start = now - timedelta(days=1)
@@ -42,22 +50,4 @@ def test_query_by_time_range(em: EpisodicMemory):
     result = em.query_by_time_range(start, end)
 
     assert len(result) == 1
-    assert result[0].description == "Recent Event"
-
-def test_query_by_concept(em: EpisodicMemory):
-    concept_id = uuid4()
-    linked_episode = Episode(
-        description="Linked Event",
-        context="NaturalEnv",
-        linked_concepts=[concept_id]
-    )
-    unlinked_episode = Episode(
-        description="Unlinked Event",
-        context="NaturalEnv"
-    )
-    em.add_episode(linked_episode)
-    em.add_episode(unlinked_episode)
-
-    result = em.query_by_concept(concept_id)
-    assert len(result) == 1
-    assert result[0].description == "Linked Event"
+    assert result[0].action == "recent_action"

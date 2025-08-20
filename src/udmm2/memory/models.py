@@ -45,9 +45,8 @@ class SemanticSchema(BaseModel):
 class Episode(BaseModel):
     """Represents a single event or experience in the agent's memory."""
     id: UUID = Field(default_factory=uuid4)
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    description: str
     context: str
-    action: Optional[str] = None
-    result: Optional[str] = None
-    linked_concepts: List[UUID] = Field(default_factory=list)
+    perception: dict
+    action: str
+    result: dict
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

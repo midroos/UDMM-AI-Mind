@@ -1,55 +1,77 @@
-from typing import Any, Dict
+from typing import Any, Dict, List
 from uuid import uuid4
 from datetime import datetime, timezone
 
-from udmm2.memory.semantic_memory import SemanticMemory
-from udmm2.memory.episodic_memory import EpisodicMemory
-from udmm2.memory.models import Episode
-from udmm2.agent.working_memory import WorkingMemory, WMItem
+from .working_memory import WorkingMemory, WMItem
+from ..memory.episodic_memory import EpisodicMemory
+from ..memory.models import Episode
+from .goal_manager import GoalManager, Intention
+
 
 class UDMMAgent:
-    def __init__(self):
-        self.semantic_memory = SemanticMemory()
-        self.episodic_memory = EpisodicMemory()
+    def __init__(self, name: str, reference_state: Dict):
+        self.name = name
         self.working_memory = WorkingMemory()
-        self.cycle_count = 0
+        self.episodic_memory = EpisodicMemory()
+        self.goal_manager = GoalManager(reference_state)
+        self.current_state = {}  # Simplified representation of agent state
 
-    def generate_expectation(self) -> str:
-        active_items = self.working_memory.get_active_items()
-        if active_items:
-            return f"Expect related to: {[item.content for item in active_items]}"
-        return "No specific expectation"
+    def perceive(self, inputs: Dict):
+        # Update current state and working memory
+        self.current_state.update(inputs)
+        perception_item = WMItem(type="perception", content=str(inputs))
+        self.working_memory.add_item(perception_item)
 
-    def select_action(self) -> str:
-        # For now, pick a simple exploratory action
-        return "explore_environment"
+    def generate_expectation(self):
+        # Placeholder: In future, derive expectations from SemanticMemory
+        return {"predicted_state": self.current_state}
 
-    def observe(self, observation: str) -> WMItem:
-        obs_item = WMItem(type="observation", content=observation)
-        self.working_memory.add_item(obs_item)
-        return obs_item
+    def select_action(self, intentions: List[Intention]) -> str:
+        # Select highest priority intention and convert to action
+        if intentions:
+            return intentions[0].description
+        return "Idle"
 
-    def update_model(self, action: str, observation: str):
-        # Store episode
+    def observe(self, action_result: Dict):
+        # Update current state with result of action
+        self.current_state.update(action_result)
+        observation_item = WMItem(type="observation", content=str(action_result))
+        self.working_memory.add_item(observation_item)
+
+    def update_model(self, discrepancy: float):
+        # If discrepancy high, adjust internal reference (simulate learning)
+        if discrepancy > 0.7:
+            for key, value in self.current_state.items():
+                self.goal_manager.reference_state[key] = value
+
+    def step(self, inputs: Dict, action_result: Dict) -> Dict[str, Any]:
+        # 1. Perceive
+        self.perceive(inputs)
+
+        # 2. Compute discrepancy and intentions
+        discrepancy = self.goal_manager.evaluate_discrepancy(self.current_state)
+        intentions = self.goal_manager.generate_intentions(discrepancy)
+
+        # 3. Select and perform action
+        action = self.select_action(intentions)
+
+        # 4. Observe results
+        self.observe(action_result)
+
+        # 5. Update model if needed
+        self.update_model(discrepancy)
+
+        # 6. Save episode
         episode = Episode(
-            description=f"Action '{action}' led to '{observation}'",
-            context="NaturalEnv",
+            context="agent_cycle",
+            perception=inputs,
             action=action,
-            result=observation
+            result=action_result,
         )
         self.episodic_memory.add_episode(episode)
 
-    def step(self) -> Dict[str, Any]:
-        self.cycle_count += 1
-        expectation = self.generate_expectation()
-        action = self.select_action()
-        observation = f"Perceived after {action}"
-        self.observe(observation)
-        self.update_model(action, observation)
-        self.working_memory.decay_activation()
         return {
-            "cycle": self.cycle_count,
-            "expectation": expectation,
-            "action": action,
-            "observation": observation
+            "discrepancy": discrepancy,
+            "selected_action": action,
+            "intentions": [i.model_dump() for i in intentions]
         }
