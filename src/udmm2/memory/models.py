@@ -49,4 +49,7 @@ class Episode(BaseModel):
     perception: dict
     action: str
     result: dict
+    body_before: Dict = Field(default_factory=dict)
+    body_after: Dict = Field(default_factory=dict)
+    emotion_signal: float = 0.0
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

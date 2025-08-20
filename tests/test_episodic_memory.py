@@ -15,7 +15,10 @@ def test_add_and_get_episode(em: EpisodicMemory):
         context="test_env",
         perception={"state": "initial"},
         action="do_something",
-        result={"state": "final"}
+        result={"state": "final"},
+        body_before={},
+        body_after={},
+        emotion_signal=0.1
     )
     eid = em.add_episode(episode)
     fetched = em.get_episode(eid)
@@ -25,8 +28,8 @@ def test_add_and_get_episode(em: EpisodicMemory):
 
 def test_query_by_context(em: EpisodicMemory):
     """Test querying episodes by their context."""
-    ep1 = Episode(context="NaturalEnv", perception={}, action="a1", result={})
-    ep2 = Episode(context="TrapEnv", perception={}, action="a2", result={})
+    ep1 = Episode(context="NaturalEnv", perception={}, action="a1", result={}, body_before={}, body_after={}, emotion_signal=0.2)
+    ep2 = Episode(context="TrapEnv", perception={}, action="a2", result={}, body_before={}, body_after={}, emotion_signal=0.3)
     em.add_episode(ep1)
     em.add_episode(ep2)
 
@@ -38,11 +41,11 @@ def test_query_by_time_range(em: EpisodicMemory):
     """Test querying episodes by a time range."""
     now = datetime.now(timezone.utc)
 
-    past_episode = Episode(context="time_test", perception={}, action="past_action", result={})
+    past_episode = Episode(context="time_test", perception={}, action="past_action", result={}, body_before={}, body_after={}, emotion_signal=0.4)
     past_episode.timestamp = now - timedelta(days=2)
     em.add_episode(past_episode)
 
-    recent_episode = Episode(context="time_test", perception={}, action="recent_action", result={})
+    recent_episode = Episode(context="time_test", perception={}, action="recent_action", result={}, body_before={}, body_after={}, emotion_signal=0.5)
     em.add_episode(recent_episode)
 
     start = now - timedelta(days=1)
