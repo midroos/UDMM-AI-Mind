@@ -9,6 +9,7 @@ from ..memory.models import Episode
 from ..memory.semantic_memory import SemanticMemory
 from ..body.body_model import BodyModel
 from ..envs.natural_env import NaturalEnv
+from ..affect.emotion import EmotionModel
 
 def utcnow_iso():
     return datetime.now(timezone.utc).isoformat()
@@ -20,8 +21,12 @@ class UDMMAgent:
         self.semantic_memory = SemanticMemory()
         self.body = BodyModel()
         self.env = env or NaturalEnv()
+        self.emotion_model = EmotionModel(alpha=0.9, max_gain=3.0)
         self._precision_gain = 1.0
         self.cycle = 0
+        self._last_expectation = {}
+        self._last_observation = {}
+        self._last_prediction_error = 0.0
 
         try:
             self.semantic_memory.add_concept(
@@ -53,6 +58,7 @@ class UDMMAgent:
                         pass
         exp["predicted_body_state"] = self.body.get_state()
         exp["prediction_error"] = 0.0
+        self._last_expectation = exp  # Store for use in update_model
         return exp
 
     def select_action(self, intentions: Optional[List[Any]] = None) -> Dict[str, Any]:
@@ -89,41 +95,76 @@ class UDMMAgent:
         self.working_memory.add_item(item)
         return observation
 
-    def update_model(self, observation: Dict[str, Any], precision_gain: float = 1.0, emotion_signal: float = 0.0):
-        body_before = observation.get("body_before", {})
-        body_after = observation.get("body_after", {})
+    def update_model(self, observation: Dict[str, Any], reward: Optional[float] = None):
+        """
+        Active-Inference style update:
+        - compute prediction_error between last predicted_body_state and observed body_after
+        - compute emotion signal (precision) from body deltas and prediction error
+        - update semantic memory rule confidences or edge weights proportionally to (learning_rate * precision_gain * prediction_error)
+        """
+        try:
+            predicted_state = self._last_expectation.get("predicted_body_state", {})
+            observed_body = observation.get("body_after", {})
+            px, py = predicted_state.get("x", 0.0), predicted_state.get("y", 0.0)
+            ox, oy = observed_body.get("x", 0.0), observed_body.get("y", 0.0)
+            pred_err = ((px - ox)**2 + (py - oy)**2)**0.5
+        except Exception:
+            pred_err = 0.0
+
+        em = self.emotion_model.compute(observation.get("body_before", {}), observed_body, pred_err, reward_signal=(reward or 0.0))
+        self.set_precision(em.precision_gain)
+
+        learning_rate = 0.05 * em.precision_gain
+        try:
+            last_perc_item = next((item for item in reversed(self.working_memory.items.values()) if item.type == "perception"), None)
+            if last_perc_item:
+                for concept_label in self.semantic_memory.search_labels_in_string(last_perc_item.content):
+                    rule_ids = self.semantic_memory.rules_related_to_label(concept_label)
+                    for rid in rule_ids:
+                        r = self.semantic_memory.get_rule_by_id(rid)
+                        if not r: continue
+                        current_conf = r.get("confidence", 0.5)
+                        direction = -1.0 if pred_err > 0.5 else 1.0
+                        delta = learning_rate * direction * (1.0 - current_conf)
+                        new_conf = max(0.0, min(1.0, current_conf + delta))
+                        self.semantic_memory.set_rule_confidence(rid, new_conf)
+        except Exception:
+            pass
+
         self.episodic_memory.add_episode(
-            description="embodied-cycle",
-            context="NaturalEnv",
-            body_before=body_before,
-            body_after=body_after,
-            emotion_signal=emotion_signal
+            description="embodied-update-cycle",
+            context=self.env.__class__.__name__,
+            perception=self._last_observation.get("perception"),
+            action=str(self._last_observation.get("action")),
+            result=observation,
+            body_before=observation.get("body_before", {}),
+            body_after=observed_body,
+            emotion_signal=em.arousal
         )
+        self._last_observation = observation
+        self._last_prediction_error = pred_err
 
     def step(self, perception: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         self.cycle += 1
         if perception:
             item = WMItem(id=uuid4(), type="perception", content=str(perception), activation=1.0)
             self.working_memory.add_item(item)
+            self._last_observation = {"perception": perception} # Store perception
 
         expectations = self.generate_expectation(perception)
         action = self.select_action()
 
-        # Add action to working memory
         action_item = WMItem(id=uuid4(), type="action", content=str(action), activation=1.0)
         self.working_memory.add_item(action_item)
+        self._last_observation["action"] = action # Store action
 
         result = self.apply_action(action)
 
-        b_before = result.get("body_before", {})
-        b_after = result.get("body_after", {})
-        arousal = math.sqrt((b_after.get("x",0)-b_before.get("x",0))**2 + (b_after.get("y",0)-b_before.get("y",0))**2)
-        precision_gain = 1.0 + min(1.0, arousal)
-        self.set_precision(precision_gain)
-
         observation = result
         self.observe(observation)
-        self.update_model(observation, precision_gain=precision_gain, emotion_signal=arousal)
+
+        # update_model now computes its own emotion signal
+        self.update_model(observation)
 
         return {
             "cycle": self.cycle,
@@ -131,5 +172,6 @@ class UDMMAgent:
             "expectations": expectations,
             "action": action,
             "result": result,
-            "precision_gain": precision_gain
+            "precision_gain": self._precision_gain,
+            "prediction_error": self._last_prediction_error
         }

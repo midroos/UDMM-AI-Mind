@@ -122,3 +122,27 @@ class SemanticMemory:
         for _, successor, data in self.graph.out_edges(node_id, data=True):
             related_nodes.append((successor, data.get("weight", 0.0)))
         return related_nodes
+
+    def search_labels_in_string(self, text: str) -> List[str]:
+        """Finds all known concept labels mentioned in a given string."""
+        found_labels = []
+        # This is a simple implementation; a real one would use more advanced NLP
+        for node_id, data in self.graph.nodes(data=True):
+            if isinstance(data.get("data"), Concept):
+                if re.search(r'\b' + re.escape(data["data"].label) + r'\b', text, re.IGNORECASE):
+                    found_labels.append(data["data"].label)
+        return list(set(found_labels))
+
+    def rules_related_to_label(self, label: str) -> List[UUID]:
+        """Finds all rules related to a concept label."""
+        concept_id = self._find_node_by_label(label)
+        if concept_id:
+            return self.rules_related_to_concept(concept_id)
+        return []
+
+    def set_rule_confidence(self, rule_id: UUID, new_conf: float) -> bool:
+        """Updates the confidence of a specific rule."""
+        if self.graph.has_node(rule_id) and isinstance(self.graph.nodes[rule_id].get("data"), Rule):
+            self.graph.nodes[rule_id]["data"].confidence = new_conf
+            return True
+        return False
