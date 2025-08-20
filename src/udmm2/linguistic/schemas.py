@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 from typing import List, Dict, Literal, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 class EmbodiedExperience(BaseModel):
     id: str
@@ -11,12 +11,4 @@ class EmbodiedExperience(BaseModel):
     cost: Dict[str, float]
     context: Dict[str, object]
     adaptations: List[str] = []
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
-
-class EpisodicSnapshot(BaseModel):
-    id: str
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
-    perception: Dict[str, object]
-    action: Optional[str] = None
-    result: Optional[str] = None
-    reward: Optional[float] = None
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
