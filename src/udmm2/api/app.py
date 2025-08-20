@@ -104,8 +104,8 @@ def list_embodied_experiences(limit: int = Query(50, ge=1, le=500)):
 # ---- Episodic Memory ----
 @app.post("/memory/episodes", response_model=Episode, tags=["Episodes"])
 def create_episode(payload: Episode):
-    # This endpoint accepts a full Episode object, which is more aligned with the agent's usage
-    eid = episodic_memory.add_episode(payload)
+    # The add_episode method now takes kwargs, so we unpack the model
+    eid = episodic_memory.add_episode(**payload.model_dump())
     return episodic_memory.get_episode(eid)
 
 @app.get("/memory/episodes", response_model=List[Episode], tags=["Episodes"])

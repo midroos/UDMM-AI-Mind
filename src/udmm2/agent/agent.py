@@ -1,81 +1,135 @@
-import math
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from uuid import uuid4
 from datetime import datetime, timezone
+import math
 
-from .body_model import BodyModel
 from .working_memory import WorkingMemory, WMItem
 from ..memory.episodic_memory import EpisodicMemory
-from ..memory.semantic_memory import SemanticMemory
 from ..memory.models import Episode
-# The agent itself no longer directly manages goals or intentions
-from ..intent.api_models import Intention
+from ..memory.semantic_memory import SemanticMemory
+from ..body.body_model import BodyModel
+from ..envs.natural_env import NaturalEnv
+
+def utcnow_iso():
+    return datetime.now(timezone.utc).isoformat()
 
 class UDMMAgent:
-    def __init__(self, name: str = "UDMMAgent"):
-        self.name = name
-        self.body = BodyModel()
+    def __init__(self, env: Optional[NaturalEnv] = None):
         self.working_memory = WorkingMemory()
         self.episodic_memory = EpisodicMemory()
         self.semantic_memory = SemanticMemory()
-        self.current_state = {}
+        self.body = BodyModel()
+        self.env = env or NaturalEnv()
         self._precision_gain = 1.0
+        self.cycle = 0
 
-    def perceive(self, inputs: Dict):
-        self.current_state.update(inputs)
-        self.current_state.update({"body": self.body.get_state()})
-        perception_item = WMItem(type="perception", content=str(self.current_state))
-        self.working_memory.add_item(perception_item)
+        try:
+            self.semantic_memory.add_concept(
+                label="move_forward",
+                description="action leading to forward displacement",
+                attributes={"type": "action", "effect": "position_delta"},
+                relations=[]
+            )
+        except Exception:
+            pass
 
-    def generate_expectation(self, perception: Dict) -> Dict[str, List[str]]:
-        expectations = {}
-        for key, value in perception.items():
-            if isinstance(value, str):
-                related = self.semantic_memory.get_related(value)
-                if related:
-                    expectations[key + "_related"] = related
-        return expectations
+    def generate_expectation(self, perception: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        exp = {}
+        active = self.working_memory.get_active_items()
+        for it in active:
+            if it.type == "action" and "move_forward" in it.content:
+                step = 1.0
+                rad = math.radians(self.body.orientation_deg)
+                exp["predicted_body_delta"] = {"dx_est": step * math.cos(rad), "dy_est": step * math.sin(rad)}
 
-    def select_action(self, intentions: List[Intention]) -> Dict:
-        # Simple selection: pick highest strength intention, or default explore
-        if not intentions:
-            return {"type": "explore", "step": 0.5 * self._precision_gain}
+        if perception:
+            for k, v in perception.items():
+                if isinstance(v, str):
+                    try:
+                        related = self.semantic_memory.get_related(v)
+                        if related:
+                            exp[f"{k}_related"] = related
+                    except Exception:
+                        pass
+        exp["predicted_body_state"] = self.body.get_state()
+        exp["prediction_error"] = 0.0
+        return exp
 
-        # For now, just use the description as a cue
-        best_intention = max(intentions, key=lambda i: i.strength)
-        action_desc = best_intention.description.lower()
+    def select_action(self, intentions: Optional[List[Any]] = None) -> Dict[str, Any]:
+        gain = max(0.5, min(2.0, getattr(self, "_precision_gain", 1.0)))
+        if self.body.energy < 0.15:
+            return {"type": "idle"}
+        step = 0.5 * gain
+        return {"type": "move_forward", "step": step}
 
-        if "refine" in action_desc:
-            return {"type": "cognitive_focus", "target": "model"}
+    def apply_action(self, action: Dict[str, Any]) -> Dict[str, Any]:
+        body_before = self.body.get_state()
+        result_body = {}
+        if action.get("type") == "move_forward":
+            result_body = self.body.move_forward(float(action.get("step", 0.5)))
+        elif action.get("type") == "turn":
+            result_body = self.body.turn(float(action.get("angle", 90.0)))
         else:
-            # Scale movement by precision gain
-            step_size = 1.0 * self._precision_gain
-            return {"type": "move_forward", "step": step_size}
+            result_body = {"status": "noop"}
 
-    def apply_action(self, action: dict) -> dict:
-        """Applies a structured action to the body model."""
-        kind = action.get("type", "noop")
-        if kind == "move_forward":
-            step = action.get("step", 1.0)
-            self.body.move(step)
-            return {"status": "ok", "info": f"moved forward by {step}"}
-        elif kind == "rotate":
-            angle = action.get("angle", 0.1)
-            self.body.rotate(angle)
-            return {"status": "ok", "info": f"rotated by {angle}"}
-        return {"status": "noop", "info": "no physical action taken"}
-
-    def observe(self, action_result: Dict) -> Dict:
-        self.current_state.update(action_result)
-        observation_item = WMItem(type="observation", content=str(action_result))
-        self.working_memory.add_item(observation_item)
-        return self.current_state
+        body_after = self.body.get_state()
+        env_feedback = self.env.step(body_after)
+        return {
+            "body_before": body_before,
+            "body_after": body_after,
+            "body_delta": result_body,
+            "env_feedback": env_feedback
+        }
 
     def set_precision(self, gain: float):
-        """Emotion-as-precision: modulates internal weighting."""
         self._precision_gain = float(gain)
 
-    def update_model(self, observation: dict, precision_gain: float, emotion_signal: float):
-        """The bridge calls this, but the agent itself doesn't do learning yet."""
-        # This is where future learning logic would go, weighted by precision_gain.
-        pass
+    def observe(self, observation: Dict[str, Any]) -> Dict[str, Any]:
+        item = WMItem(id=uuid4(), type="observation", content=str(observation), activation=1.0)
+        self.working_memory.add_item(item)
+        return observation
+
+    def update_model(self, observation: Dict[str, Any], precision_gain: float = 1.0, emotion_signal: float = 0.0):
+        body_before = observation.get("body_before", {})
+        body_after = observation.get("body_after", {})
+        self.episodic_memory.add_episode(
+            description="embodied-cycle",
+            context="NaturalEnv",
+            body_before=body_before,
+            body_after=body_after,
+            emotion_signal=emotion_signal
+        )
+
+    def step(self, perception: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        self.cycle += 1
+        if perception:
+            item = WMItem(id=uuid4(), type="perception", content=str(perception), activation=1.0)
+            self.working_memory.add_item(item)
+
+        expectations = self.generate_expectation(perception)
+        action = self.select_action()
+
+        # Add action to working memory
+        action_item = WMItem(id=uuid4(), type="action", content=str(action), activation=1.0)
+        self.working_memory.add_item(action_item)
+
+        result = self.apply_action(action)
+
+        b_before = result.get("body_before", {})
+        b_after = result.get("body_after", {})
+        arousal = math.sqrt((b_after.get("x",0)-b_before.get("x",0))**2 + (b_after.get("y",0)-b_before.get("y",0))**2)
+        precision_gain = 1.0 + min(1.0, arousal)
+        self.set_precision(precision_gain)
+
+        observation = result
+        self.observe(observation)
+        self.update_model(observation, precision_gain=precision_gain, emotion_signal=arousal)
+
+        return {
+            "cycle": self.cycle,
+            "perception": perception,
+            "expectations": expectations,
+            "action": action,
+            "result": result,
+            "precision_gain": precision_gain
+        }

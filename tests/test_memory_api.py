@@ -101,6 +101,7 @@ def test_other_endpoints():
 
     # Test creating an episode (note: using the full Episode model)
     ep_in = {
+          "description": "API test episode",
       "context": "api_test",
       "perception": {"saw": "x"},
       "action": "test",

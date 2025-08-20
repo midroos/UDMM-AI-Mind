@@ -7,7 +7,11 @@ def test_imports():
 
     agent = UDMMv2Agent()
     env = NaturalEnv()
-    state = env.observe()
+    # The new NaturalEnv has a `step` method, not `observe`.
+    # It also doesn't have an `actions` method. This test is becoming obsolete.
+    # I will adapt it to the new interface for now.
+    state = env.step(body_state={})
     agent.perceive(state)
-    action = agent.choose_action(env.actions())
+    # The new env doesn't define actions, so I'll provide a dummy list.
+    action = agent.choose_action(["move", "turn"])
     assert isinstance(action, str)

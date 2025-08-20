@@ -41,15 +41,17 @@ class SemanticSchema(BaseModel):
     modifiable_by_agent: bool = True
     last_updated: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-
 class Episode(BaseModel):
-    """Represents a single event or experience in the agent's memory."""
     id: UUID = Field(default_factory=uuid4)
-    context: str
-    perception: dict
-    action: str
-    result: dict
-    body_before: Dict = Field(default_factory=dict)
-    body_after: Dict = Field(default_factory=dict)
-    emotion_signal: float = 0.0
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    description: str
+    context: str
+    perception: Optional[Dict] = None
+    action: Optional[str] = None
+    result: Optional[Dict] = None
+    body_before: Optional[Dict] = None
+    body_after: Optional[Dict] = None
+    emotion_signal: Optional[float] = None
+    linked_concepts: List[UUID] = []
+    linked_rules: List[UUID] = []
+    importance: float = 1.0

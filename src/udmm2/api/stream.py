@@ -1,19 +1,12 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from typing import Dict, Any
+from uuid import UUID
 
-# Re-using the same pattern of singletons for the stream
-from ..intent.goal_service import GoalManager
 from ..agent.agent import UDMMAgent
-from ..agent.agent_intent_integration import AgentIntentBridge
 
 router = APIRouter(prefix="/stream", tags=["Streaming"])
 
-# The WebSocket gets its own instances of the agent components
-# to avoid state conflicts with the REST API for this demo.
-_stream_gm = GoalManager()
-_stream_agent = UDMMAgent(name="Stream-Agent")
-_stream_bridge = AgentIntentBridge(agent=_stream_agent, goal_manager=_stream_gm)
-
+# The WebSocket gets its own instance of the agent to maintain state per-session.
 @router.websocket("/cycle")
 async def cycle_stream(ws: WebSocket):
     """
@@ -25,13 +18,13 @@ async def cycle_stream(ws: WebSocket):
       cycle triggered by your perception.
     """
     await ws.accept()
+    # Create a new agent instance for each WebSocket session
+    agent = UDMMAgent()
     try:
         while True:
-            # Expect a perception dict from client each tick
             data = await ws.receive_json()
-            out: Dict[str, Any] = _stream_bridge.step_with_intentions(data)
+            out: Dict[str, Any] = agent.step(data)
 
-            # Convert UUIDs to strings for JSON serialization
             def make_json_safe(d):
                 for k, v in d.items():
                     if isinstance(v, UUID):

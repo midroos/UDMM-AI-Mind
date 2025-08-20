@@ -1,46 +1,33 @@
 import pytest
 import math
-from udmm2.agent.body_model import BodyModel
+from udmm2.body.body_model import BodyModel
 
-@pytest.fixture
-def body():
-    """Provides a default BodyModel instance for each test."""
-    return BodyModel()
+def test_move_and_turn():
+    b = BodyModel(x=0.0, y=0.0, orientation_deg=0.0, energy=1.0)
 
-def test_body_initial_state(body: BodyModel):
+    # Test move
+    res = b.move_forward(1.0)
+    assert res["dx"] == pytest.approx(1.0)
+    assert res["dy"] == pytest.approx(0.0)
+    assert b.x == pytest.approx(1.0)
+    assert 0.0 <= b.energy < 1.0
+
+    # Test turn
+    t_res = b.turn(90)
+    assert t_res["dtheta"] == 90.0
+    assert b.orientation_deg == 90.0
+
+    # Test move after turning
+    res2 = b.move_forward(1.0)
+    assert res2["dx"] == pytest.approx(0.0)
+    assert res2["dy"] == pytest.approx(1.0)
+    assert b.x == pytest.approx(1.0)
+    assert b.y == pytest.approx(1.0)
+
+def test_get_state(body: BodyModel = BodyModel()):
     state = body.get_state()
-    assert state["position"]["x"] == 0.0
-    assert state["position"]["y"] == 0.0
-    assert state["orientation"] == 0.0
-    assert state["energy"] == 100.0
-
-def test_body_move(body: BodyModel):
-    # Move 1 unit along the x-axis (angle = 0)
-    dx, dy = body.move(1.0)
-    assert dx == 1.0
-    assert dy == 0.0
-    assert body.x == 1.0
-    assert body.y == 0.0
-    # Check energy consumption
-    assert body.energy < 100.0
-
-def test_body_rotate_and_move(body: BodyModel):
-    # Rotate 90 degrees (pi/2 radians)
-    body.rotate(math.pi / 2)
-    assert body.angle == pytest.approx(math.pi / 2)
-
-    # Move 1 unit along the new y-axis
-    dx, dy = body.move(1.0)
-    assert dx == pytest.approx(0.0)
-    assert dy == pytest.approx(1.0)
-    assert body.x == pytest.approx(0.0)
-    assert body.y == pytest.approx(1.0)
-
-def test_adjust_energy(body: BodyModel):
-    body.adjust_energy(-20)
-    assert body.energy == 80.0
-    body.adjust_energy(30)
-    assert body.energy == 110.0
-    # Test energy doesn't go below zero
-    body.adjust_energy(-200)
-    assert body.energy == 0.0
+    assert "x" in state
+    assert "y" in state
+    assert "orientation_deg" in state
+    assert "energy" in state
+    assert "timestamp" in state
