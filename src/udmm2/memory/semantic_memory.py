@@ -1,5 +1,5 @@
 import networkx as nx
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Dict
 
 from udmm2.memory.models import Concept, Rule, SemanticLink
 
@@ -87,3 +87,60 @@ class SemanticMemory:
                 related_nodes.append((successor, weight))
 
         return related_nodes
+
+    def _find_node_by_label(self, label: str) -> Optional[str]:
+        """Finds the first node ID with a matching label."""
+        for node_id, data in self.graph.nodes(data=True):
+            if data.get("data") and data["data"].label == label:
+                return node_id
+        return None
+
+    def add_concept_simple(self, name: str, attributes: Dict[str, str], related: List[str]):
+        """
+        A simple way to add a concept and its relations.
+        This is a convenience method for testing and simple cases.
+        """
+        # Create or find the main concept
+        main_concept_id = self._find_node_by_label(name)
+        if not main_concept_id:
+            main_concept = Concept(id=name, label=name, attributes=attributes)
+            self.add_concept(main_concept)
+            main_concept_id = name
+
+        # Create or find related concepts and link them
+        for related_name in related:
+            related_concept_id = self._find_node_by_label(related_name)
+            if not related_concept_id:
+                related_concept = Concept(id=related_name, label=related_name)
+                self.add_concept(related_concept)
+                related_concept_id = related_name
+
+            link = SemanticLink(source=main_concept_id, target=related_concept_id, type="related_to", weight=0.5)
+            self.link_nodes(link)
+
+    def get_related(self, concept_name: str) -> List[str]:
+        """
+        Gets the labels of all concepts related to the given concept name.
+        """
+        concept_id = self._find_node_by_label(concept_name)
+        if not concept_id:
+            return []
+
+        related_ids = [succ for succ, _ in self.query_related(concept_id)]
+        related_labels = []
+        for rid in related_ids:
+            node_data = self.get_node_data(rid)
+            if node_data:
+                related_labels.append(node_data.label)
+        return related_labels
+
+    def get_attributes(self, concept_name: str) -> Dict[str, str]:
+        """
+        Gets the attributes of a concept by its name.
+        """
+        concept_id = self._find_node_by_label(concept_name)
+        if concept_id:
+            node_data = self.get_node_data(concept_id)
+            if node_data and isinstance(node_data, Concept):
+                return node_data.attributes
+        return {}

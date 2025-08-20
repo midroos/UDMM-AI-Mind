@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 
 from .working_memory import WorkingMemory, WMItem
 from ..memory.episodic_memory import EpisodicMemory
+from ..memory.semantic_memory import SemanticMemory
 from ..memory.models import Episode
 from .goal_manager import GoalManager, Intention
 
@@ -14,6 +15,7 @@ class UDMMAgent:
         self.working_memory = WorkingMemory()
         self.episodic_memory = EpisodicMemory()
         self.goal_manager = GoalManager(reference_state)
+        self.semantic_memory = SemanticMemory()
         self.current_state = {}  # Simplified representation of agent state
 
     def perceive(self, inputs: Dict):
@@ -22,9 +24,19 @@ class UDMMAgent:
         perception_item = WMItem(type="perception", content=str(inputs))
         self.working_memory.add_item(perception_item)
 
-    def generate_expectation(self):
-        # Placeholder: In future, derive expectations from SemanticMemory
-        return {"predicted_state": self.current_state}
+    def generate_expectation(self) -> Dict[str, List[str]]:
+        """
+        Generate expectations based on semantic relationships.
+        If the agent perceives a concept, predict related concepts.
+        """
+        expectations = {}
+        # Assuming current_state values are concept labels
+        for key, value in self.current_state.items():
+            if isinstance(value, str):
+                related = self.semantic_memory.get_related(value)
+                if related:
+                    expectations[key + "_related"] = related
+        return expectations
 
     def select_action(self, intentions: List[Intention]) -> str:
         # Select highest priority intention and convert to action
@@ -52,16 +64,19 @@ class UDMMAgent:
         discrepancy = self.goal_manager.evaluate_discrepancy(self.current_state)
         intentions = self.goal_manager.generate_intentions(discrepancy)
 
-        # 3. Select and perform action
+        # 3. Generate expectations based on current state
+        expectations = self.generate_expectation()
+
+        # 4. Select and perform action
         action = self.select_action(intentions)
 
-        # 4. Observe results
+        # 5. Observe results
         self.observe(action_result)
 
-        # 5. Update model if needed
+        # 6. Update model if needed
         self.update_model(discrepancy)
 
-        # 6. Save episode
+        # 7. Save episode
         episode = Episode(
             context="agent_cycle",
             perception=inputs,
@@ -73,5 +88,6 @@ class UDMMAgent:
         return {
             "discrepancy": discrepancy,
             "selected_action": action,
-            "intentions": [i.model_dump() for i in intentions]
+            "intentions": [i.model_dump() for i in intentions],
+            "expectations": expectations,
         }
