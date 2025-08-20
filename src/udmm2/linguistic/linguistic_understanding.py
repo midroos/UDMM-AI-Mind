@@ -1,5 +1,5 @@
 from typing import Dict, Any
-from udmm2.linguistic.schemas import Concept, Rule
+from udmm2.memory.models import Concept, Rule
 from udmm2.memory.long_term_memory import LongTermMemory
 
 class LinguisticUnderstanding:

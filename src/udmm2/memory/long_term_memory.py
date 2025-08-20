@@ -1,5 +1,5 @@
 from typing import Dict, List
-from udmm2.linguistic.schemas import Concept, Rule
+from udmm2.memory.models import Concept, Rule
 
 class LongTermMemory:
     def __init__(self):
