@@ -12,6 +12,7 @@ from ..envs.natural_env import NaturalEnv
 from ..affect.emotion import EmotionModel
 from ..goals.attractor import AttractorModel
 from ..goals.hierarchical_intent import HierarchicalIntent, SubGoal
+from ..dialogue.dialogue_manager import DialogueManager
 
 def utcnow_iso():
     return datetime.now(timezone.utc).isoformat()
@@ -25,6 +26,7 @@ class UDMMAgent:
         self.env = env or NaturalEnv()
         self.emotion_model = EmotionModel(alpha=0.9, max_gain=3.0)
         self.hierarchical_intent: Optional[HierarchicalIntent] = None
+        self.dialogue = DialogueManager(agent=self)
         self._precision_gain = 1.0
         self.cycle = 0
         self._last_expectation = {}
@@ -87,6 +89,7 @@ class UDMMAgent:
                 dist_to_subgoal = math.hypot(dx, dy)
 
                 if self.hierarchical_intent.advance_if_reached(current_pos):
+                    self.dialogue.on_subgoal_completed(subgoal)
                     # After advancing, get the next subgoal for this same step
                     subgoal = self.hierarchical_intent.current_subgoal()
                     if not subgoal: return {"type": "idle"} # Reached final goal
@@ -161,6 +164,10 @@ class UDMMAgent:
         em = self.emotion_model.compute(observation.get("body_before", {}), observed_body, pred_err, reward_signal=(reward or 0.0))
         self.set_precision(em.precision_gain)
 
+        # Dialogue hooks
+        self.dialogue.on_prediction_error(pred_err, context={"observed": observed_body})
+        self.dialogue.on_emotion_change(em.model_dump())
+
         learning_rate = 0.05 * em.precision_gain
         try:
             last_perc_item = next((item for item in reversed(self.working_memory.items.values()) if item.type == "perception"), None)
@@ -219,6 +226,9 @@ class UDMMAgent:
 
         # update_model now computes its own emotion signal
         self.update_model(observation)
+
+        # Heartbeat tick for dialogue
+        self.dialogue.heartbeat()
 
         return {
             "cycle": self.cycle,
