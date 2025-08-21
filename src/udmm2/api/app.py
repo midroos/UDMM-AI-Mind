@@ -8,6 +8,8 @@ from typing import Dict, Any, List
 from .intent_app import router as intent_router
 from .stream import router as stream_router
 from ..comm.chat_ws import router as ws_router, comm_hub
+from .stub_router import router as stub_router
+from .stub_router import router as stub_router # Import stub router
 
 # Import agent and new modules
 from ..agent.agent import UDMMAgent
@@ -82,6 +84,7 @@ def create_app(agent: UDMMAgent) -> FastAPI:
     # Include all routers
     app.include_router(ws_router)
     app.include_router(intent_router) # From previous step
+    app.include_router(stub_router) # Add the stub router
     # I need to re-create the memory router from the old app.py
     # For now, I will add the endpoints directly here.
 
