@@ -1,10 +1,10 @@
 import pytest
-from udmm2.agent.agent import UDMMAgent
+from udmm2.agent.legacy_agent import LegacyUDMMAgent
 from udmm2.envs.natural_env import NaturalEnv
 
 def test_embodied_cycle_moves_agent():
     env = NaturalEnv(objects=[{"id": "fruit1", "x": 0.6, "y": 0.0, "tags": ["food"]}])
-    agent = UDMMAgent(env=env)
+    agent = LegacyUDMMAgent(env=env)
 
     # Get initial state
     before_state = agent.body.get_state()
@@ -30,7 +30,7 @@ def test_embodied_cycle_moves_agent():
 def test_agent_senses_environment():
     # Place an object right in front of the agent
     env = NaturalEnv(objects=[{"id": "fruit1", "x": 0.5, "y": 0.0, "tags": ["food"]}])
-    agent = UDMMAgent(env=env)
+    agent = LegacyUDMMAgent(env=env)
 
     # The action result will contain the environment feedback
     result = agent.apply_action({"type": "move_forward", "step": 0.1})

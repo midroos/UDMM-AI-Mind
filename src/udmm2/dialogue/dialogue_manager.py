@@ -8,7 +8,7 @@ import logging
 # Forward reference for the agent to avoid circular imports
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from ..agent.agent import UDMMAgent
+    from ..agent.legacy_agent import LegacyUDMMAgent
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ class InnerUtterance(BaseModel):
     timestamp: str = Field(default_factory=utcnow_iso)
 
 class DialogueManager:
-    def __init__(self, agent: "UDMMAgent", prediction_error_threshold: float = 0.5, heartbeat_period: int = 10):
+    def __init__(self, agent: "LegacyUDMMAgent", prediction_error_threshold: float = 0.5, heartbeat_period: int = 10):
         self.agent = agent
         self.prediction_error_threshold = float(prediction_error_threshold)
         self.heartbeat_period = int(heartbeat_period)

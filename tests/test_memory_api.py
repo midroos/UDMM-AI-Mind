@@ -3,11 +3,11 @@ from fastapi.testclient import TestClient
 from uuid import UUID
 
 from udmm2.api.app import create_app
-from udmm2.agent.agent import UDMMAgent
+from udmm2.agent.legacy_agent import LegacyUDMMAgent
 
 # Create a single app instance for this test module
 # This uses a fresh agent for this test suite
-app = create_app(agent=UDMMAgent())
+app = create_app(agent=LegacyUDMMAgent())
 client = TestClient(app)
 
 def test_health_check():

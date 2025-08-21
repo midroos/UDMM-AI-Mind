@@ -3,7 +3,7 @@ from fastapi.testclient import TestClient
 
 from udmm2.api.app import create_app
 from udmm2.envs.natural_env import NaturalEnv
-from udmm2.agent.agent import UDMMAgent
+from udmm2.agent.legacy_agent import LegacyUDMMAgent
 from udmm2.goals.attractor import AttractorModel
 
 class DummySemanticMemory:
@@ -29,7 +29,7 @@ class DummyWebModule:
 @pytest.fixture
 def agent():
     env = NaturalEnv(objects=[])
-    ag = UDMMAgent(env=env)
+    ag = LegacyUDMMAgent(env=env)
     # Attach dummy semantic memory for test isolation
     ag.semantic_memory = DummySemanticMemory()
     ag.web = DummyWebModule()

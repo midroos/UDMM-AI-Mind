@@ -4,12 +4,12 @@ from uuid import UUID
 # The new agent doesn't use the GoalManager/Intentionality models directly in its step
 # from ..intent.api_models import GoalIn, GoalOut, AttractorConfig
 # from ..intent.goal_service import GoalManager
-from ..agent.agent import UDMMAgent
+from ..agent.legacy_agent import LegacyUDMMAgent
 
 router = APIRouter(prefix="/agent", tags=["Agent"])
 
 # Singleton agent for the API
-_agent = UDMMAgent()
+_agent = LegacyUDMMAgent()
 
 @router.post("/step", summary="Run one full agent cycle")
 def agent_step(perception: Dict[str, Any]):

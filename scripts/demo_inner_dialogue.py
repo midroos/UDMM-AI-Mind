@@ -1,4 +1,4 @@
-from udmm2.agent.agent import UDMMAgent
+from udmm2.agent.legacy_agent import LegacyUDMMAgent
 from udmm2.envs.natural_env import NaturalEnv
 from udmm2.goals.attractor import AttractorModel
 import time
@@ -6,7 +6,7 @@ import time
 def demo():
     print("--- Starting Inner Dialogue Demo ---")
     env = NaturalEnv(objects=[])
-    agent = UDMMAgent(env=env)
+    agent = LegacyUDMMAgent(env=env)
 
     attractor = AttractorModel(target_x=3.0, target_y=0.0)
     agent.set_hierarchical_attractor(attractor, n_steps=3)

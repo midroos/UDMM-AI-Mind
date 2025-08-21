@@ -1,10 +1,10 @@
 import matplotlib.pyplot as plt
-from udmm2.agent.agent import UDMMAgent
+from udmm2.agent.legacy_agent import LegacyUDMMAgent
 from udmm2.envs.natural_env import NaturalEnv
 
 def main():
     env = NaturalEnv(objects=[])
-    agent = UDMMAgent(env=env)
+    agent = LegacyUDMMAgent(env=env)
 
     # Set the attractor
     attractor_pos = (5.0, 5.0)

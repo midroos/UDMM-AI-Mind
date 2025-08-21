@@ -2,7 +2,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from typing import Dict, Any
 from uuid import UUID
 
-from ..agent.agent import UDMMAgent
+from ..agent.legacy_agent import LegacyUDMMAgent
 
 router = APIRouter(prefix="/stream", tags=["Streaming"])
 
@@ -19,7 +19,7 @@ async def cycle_stream(ws: WebSocket):
     """
     await ws.accept()
     # Create a new agent instance for each WebSocket session
-    agent = UDMMAgent()
+    agent = LegacyUDMMAgent()
     try:
         while True:
             data = await ws.receive_json()

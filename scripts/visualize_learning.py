@@ -1,11 +1,11 @@
 import matplotlib.pyplot as plt
-from udmm2.agent.agent import UDMMAgent
+from udmm2.agent.legacy_agent import LegacyUDMMAgent
 from udmm2.envs.natural_env import NaturalEnv
 from udmm2.experiment.runner import ExperimentRunner
 
 def main():
     env = NaturalEnv(objects=[{"id":"food","x":1.0,"y":0.0,"tags":["food"]}])
-    agent = UDMMAgent(env=env)
+    agent = LegacyUDMMAgent(env=env)
 
     # seed a simple rule for 'food'
     try:

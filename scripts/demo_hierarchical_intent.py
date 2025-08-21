@@ -1,10 +1,10 @@
-from udmm2.agent.agent import UDMMAgent
+from udmm2.agent.legacy_agent import LegacyUDMMAgent
 from udmm2.envs.natural_env import NaturalEnv
 from udmm2.goals.attractor import AttractorModel
 
 def demo():
     env = NaturalEnv(objects=[])
-    agent = UDMMAgent(env=env)
+    agent = LegacyUDMMAgent(env=env)
 
     # set a hierarchical attractor at (5,5) with 4 sub-steps
     attractor = AttractorModel(target_x=5.0, target_y=5.0)

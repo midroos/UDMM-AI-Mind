@@ -1,5 +1,5 @@
 from typing import Dict, Any, List
-from ..agent.agent import UDMMAgent
+from ..agent.legacy_agent import LegacyUDMMAgent
 from ..envs.natural_env import NaturalEnv
 
 class ExperimentRunner:
@@ -7,7 +7,7 @@ class ExperimentRunner:
         self.env = env or NaturalEnv(objects=[])
         self.steps = int(steps)
 
-    def run(self, agent: UDMMAgent, perceptions: List[Dict[str,Any]] | None = None) -> Dict[str, Any]:
+    def run(self, agent: LegacyUDMMAgent, perceptions: List[Dict[str,Any]] | None = None) -> Dict[str, Any]:
         perceptions = perceptions or [{} for _ in range(self.steps)]
         for i in range(self.steps):
             agent.step(perception=perceptions[i] if i < len(perceptions) else {})

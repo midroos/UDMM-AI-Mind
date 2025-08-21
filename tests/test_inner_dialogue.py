@@ -1,18 +1,18 @@
 import pytest
 from udmm2.dialogue.dialogue_manager import DialogueManager, InnerUtterance
-from udmm2.agent.agent import UDMMAgent
+from udmm2.agent.legacy_agent import LegacyUDMMAgent
 from udmm2.envs.natural_env import NaturalEnv
 from udmm2.goals.attractor import AttractorModel
 
 def test_inner_utterance_on_prediction_error():
-    agent = UDMMAgent()
+    agent = LegacyUDMMAgent()
     dm = agent.dialogue
     utt = dm.on_prediction_error(pred_err=1.23, context={"expectation":"pos(0,0)","observed":"pos(1,2)"})
     assert isinstance(utt, InnerUtterance)
     assert "انحراف" in utt.text
 
 def test_subgoal_completion_triggers_utterance():
-    agent = UDMMAgent()
+    agent = LegacyUDMMAgent()
     attractor = AttractorModel(target_x=2.0, target_y=0.0)
     agent.set_hierarchical_attractor(attractor, n_steps=2)
     hi = agent.hierarchical_intent

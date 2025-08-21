@@ -1,11 +1,11 @@
 import pytest
-from udmm2.agent.agent import UDMMAgent
+from udmm2.agent.legacy_agent import LegacyUDMMAgent
 from udmm2.envs.natural_env import NaturalEnv
 from udmm2.goals.attractor import AttractorModel
 
 def test_hierarchical_subgoals_generation():
     """Test that subgoals are generated correctly."""
-    agent = UDMMAgent()
+    agent = LegacyUDMMAgent()
     attractor = AttractorModel(target_x=4.0, target_y=0.0)
     agent.set_hierarchical_attractor(attractor, n_steps=4)
 
@@ -19,7 +19,7 @@ def test_hierarchical_subgoals_generation():
 
 def test_agent_follows_subgoals():
     """Test that the agent follows and completes a sequence of subgoals."""
-    agent = UDMMAgent()
+    agent = LegacyUDMMAgent()
     attractor = AttractorModel(target_x=2.0, target_y=0.0)
     agent.set_hierarchical_attractor(attractor, n_steps=2) # Two subgoals: at x=1 and x=2
 

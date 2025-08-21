@@ -1,10 +1,10 @@
 import pytest
-from udmm2.agent.agent import UDMMAgent
+from udmm2.agent.legacy_agent import LegacyUDMMAgent
 from udmm2.envs.natural_env import NaturalEnv
 
 def test_learning_updates_confidence_soft():
     env = NaturalEnv(objects=[{"id":"food", "x":1.0, "y":0.0, "tags":["food"]}])
-    agent = UDMMAgent(env=env)
+    agent = LegacyUDMMAgent(env=env)
 
     # Seed a concept and a rule
     try:

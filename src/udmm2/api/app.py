@@ -12,7 +12,7 @@ from .stub_router import router as stub_router
 from .stub_router import router as stub_router # Import stub router
 
 # Import agent and new modules
-from ..agent.agent import UDMMAgent
+from ..agent.legacy_agent import LegacyUDMMAgent
 from ..web.search import WebPerceptionModule
 from ..ai.external import ExternalAIConnector
 
@@ -24,7 +24,7 @@ from ..goals.attractor import AttractorModel
 
 logger = logging.getLogger(__name__)
 
-def create_app(agent: UDMMAgent) -> FastAPI:
+def create_app(agent: LegacyUDMMAgent) -> FastAPI:
     app = FastAPI(title="UDMM AI Mind API", version="1.0.0")
 
     # This is a bit of a hack for the demo. In a real app, this would be

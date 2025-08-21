@@ -1,17 +1,25 @@
 def test_imports():
     import udmm2
-    from udmm2.core.udmm_agent import UDMMv2Agent
+    from udmm2.agent.agent import UDMMAgent
     from udmm2.linguistic.linguistic_understanding import LinguisticUnderstanding
     from udmm2.simulation.gsm import GenerativeSimulator
     from udmm2.envs.natural_env import NaturalEnv
 
-    agent = UDMMv2Agent()
+    agent = UDMMAgent()
     env = NaturalEnv()
-    # The new NaturalEnv has a `step` method, not `observe`.
-    # It also doesn't have an `actions` method. This test is becoming obsolete.
-    # I will adapt it to the new interface for now.
+
+    # Test that the agent and its components can be initialized
+    assert isinstance(agent, UDMMAgent)
+    assert isinstance(agent.linguistic_understanding, LinguisticUnderstanding)
+    assert isinstance(agent.generative_simulator, GenerativeSimulator)
+
+    # Test the basic agent API
     state = env.step(body_state={})
     agent.perceive(state)
-    # The new env doesn't define actions, so I'll provide a dummy list.
+
+    # Provide a dummy list of actions
     action = agent.choose_action(["move", "turn"])
     assert isinstance(action, str)
+
+    # Test the learn method
+    agent.learn(action, 1.0, {})
