@@ -27,6 +27,7 @@ class UDMMAgent:
         self.emotion_model = EmotionModel(alpha=0.9, max_gain=3.0)
         self.hierarchical_intent: Optional[HierarchicalIntent] = None
         self.dialogue = DialogueManager(agent=self)
+        self.comm = None  # Placeholder for the CommHub instance
         self._precision_gain = 1.0
         self.cycle = 0
         self._last_expectation = {}
