@@ -11,7 +11,7 @@ from ..body.body_model import BodyModel
 from ..envs.natural_env import NaturalEnv
 from ..affect.emotion import EmotionModel
 from ..goals.attractor import AttractorModel
-from ..goals.hierarchical_intent import HierarchicalIntent, Subgoal
+from ..goals.hierarchical_intent import HierarchicalIntent, SubGoal
 
 def utcnow_iso():
     return datetime.now(timezone.utc).isoformat()
@@ -67,7 +67,11 @@ class UDMMAgent:
 
     def set_hierarchical_attractor(self, ultimate_attractor: AttractorModel, n_steps: int = 3):
         self.hierarchical_intent = HierarchicalIntent(ultimate_attractor=ultimate_attractor)
-        self.hierarchical_intent.generate_subgoals(self.body.get_state(), self.semantic_memory, n_steps=n_steps)
+        self.hierarchical_intent.generate_linear_subgoals(
+            current_state=self.body.get_state(),
+            semantic_memory=self.semantic_memory,
+            n_steps=n_steps
+        )
 
     def select_action(self, intentions: Optional[List[Any]] = None) -> Dict[str, Any]:
         gain = getattr(self, "_precision_gain", 1.0)
@@ -82,8 +86,7 @@ class UDMMAgent:
                 dy = subgoal.target_y - current_pos["y"]
                 dist_to_subgoal = math.hypot(dx, dy)
 
-                if dist_to_subgoal < 0.1: # Reached subgoal
-                    self.hierarchical_intent.advance_subgoal()
+                if self.hierarchical_intent.advance_if_reached(current_pos):
                     # After advancing, get the next subgoal for this same step
                     subgoal = self.hierarchical_intent.current_subgoal()
                     if not subgoal: return {"type": "idle"} # Reached final goal
