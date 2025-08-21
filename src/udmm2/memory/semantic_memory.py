@@ -165,3 +165,33 @@ class SemanticMemory:
                         closest_label = node_data.label
 
         return closest_label
+
+    def get_graph_data(self) -> Dict[str, List[Dict[str, Any]]]:
+        """Returns a serializable representation of the graph for visualization."""
+        nodes = []
+        for node_id, data in self.graph.nodes(data=True):
+            node_obj = data.get("data")
+            if isinstance(node_obj, Concept):
+                nodes.append({
+                    "id": str(node_id),
+                    "label": node_obj.label,
+                    "title": node_obj.description,
+                    "type": "concept"
+                })
+            elif isinstance(node_obj, Rule):
+                nodes.append({
+                    "id": str(node_id),
+                    "label": f"Rule {str(node_id)[:4]}",
+                    "title": f"IF {node_obj.if_} THEN {node_obj.then}",
+                    "type": "rule"
+                })
+
+        edges = []
+        for source, target, data in self.graph.edges(data=True):
+            edges.append({
+                "source": str(source),
+                "target": str(target),
+                "label": data.get("type", "related")
+            })
+
+        return {"nodes": nodes, "edges": edges}

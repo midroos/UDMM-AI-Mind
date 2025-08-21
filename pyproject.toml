@@ -14,8 +14,9 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]
-api = ["fastapi>=0.110", "uvicorn[standard]>=0.23", "httpx>=0.27"]
+api = ["fastapi>=0.110", "uvicorn[standard]>=0.23", "httpx>=0.27", "websockets>=12.0"]
 viz = ["matplotlib"]
+ui = ["streamlit>=1.32", "pyvis>=0.3.2"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -231,6 +231,11 @@ class UDMMAgent:
         # Heartbeat tick for dialogue
         self.dialogue.heartbeat()
 
+        # Serialize the hierarchical intent for the UI
+        intent_data = None
+        if self.hierarchical_intent:
+            intent_data = self.hierarchical_intent.to_dict()
+
         return {
             "cycle": self.cycle,
             "perception": perception,
@@ -238,5 +243,7 @@ class UDMMAgent:
             "action": action,
             "result": result,
             "precision_gain": self._precision_gain,
-            "prediction_error": self._last_prediction_error
+            "prediction_error": self._last_prediction_error,
+            "semantic_graph": self.semantic_memory.get_graph_data(),
+            "active_goals": intent_data
         }
